@@ -30,7 +30,7 @@ func readMessagePacket(br *bufio.Reader) (*messagePacket, error) {
 func (msg *messagePacket) readMessage() (m ldap.LDAPMessage, err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			err = fmt.Errorf("invalid packet received hex=%x, %#v", msg.bytes, r)
+			err = fmt.Errorf("invalid packet received, %#v", r)
 		}
 	}()
 
@@ -90,7 +90,7 @@ func readTagAndLength(conn *bufio.Reader, bytes *[]byte) (ret ldap.TagAndLength,
 	//	}
 	// We are expecting the LDAP sequence tag 0x30 as first byte
 	if b != 0x30 {
-		err = fmt.Errorf("Expecting 0x30 as first byte, but got %#x instead", b)
+		err = errors.New("Expecting 0x30 as first byte")
 		return
 	}
 
