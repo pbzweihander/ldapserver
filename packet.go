@@ -2,8 +2,10 @@ package ldapserver
 
 import (
 	"bufio"
+	"bytes"
 	"errors"
 	"fmt"
+	"io"
 
 	ldap "github.com/vjeantet/goldap/message"
 )
@@ -49,14 +51,16 @@ func decodeMessage(bytes []byte) (ret ldap.LDAPMessage, err error) {
 // BELLOW SHOULD BE IN ROOX PACKAGE
 
 func readLdapMessageBytes(br *bufio.Reader) (ret *[]byte, err error) {
-	var bytes []byte
+	var data []byte
 	var tagAndLength ldap.TagAndLength
-	tagAndLength, err = readTagAndLength(br, &bytes)
+	tagAndLength, err = readTagAndLength(br, &data)
 	if err != nil {
 		return
 	}
-	readBytes(br, &bytes, tagAndLength.Length)
-	return &bytes, err
+	buffer := bytes.NewBuffer(data)
+	_, err = io.CopyN(buffer, br, int64(tagAndLength.Length))
+	data = buffer.Bytes()
+	return &data, err
 }
 
 // readTagAndLength parses an ASN.1 tag and length pair from a live connection
@@ -137,11 +141,8 @@ func readTagAndLength(conn *bufio.Reader, bytes *[]byte) (ret ldap.TagAndLength,
 // Return the last read byte
 func readBytes(conn *bufio.Reader, bytes *[]byte, length int) (b byte, err error) {
 	newbytes := make([]byte, length)
-	n, err := conn.Read(newbytes)
-	if n != length {
-		err = fmt.Errorf("%d bytes read instead of %d", n, length)
-		return
-	} else if err != nil {
+	_, err = io.ReadFull(conn, newbytes)
+	if err != nil {
 		return
 	}
 	*bytes = append(*bytes, newbytes...)
